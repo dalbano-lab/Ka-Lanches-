@@ -610,6 +610,25 @@
   }
   .welcome-perk span { font-size: 20px; }
 
+
+  .obs-box {
+    margin-bottom: 14px;
+  }
+  .obs-box label {
+    display: block; font-size: 12px; font-weight: 700;
+    color: #aaa; margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+  .obs-box textarea {
+    width: 100%; background: var(--dark3);
+    border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; font-size: 13px; color: #fff;
+    font-family: 'Nunito', sans-serif; outline: none;
+    transition: border-color .2s; resize: none; min-height: 70px;
+  }
+  .obs-box textarea:focus { border-color: var(--yellow); }
+  .obs-box textarea::placeholder { color: #555; }
+
 </style>
 </head>
 <body>
@@ -929,6 +948,10 @@ function renderCartContent() {
       <div class="cs-row"><span>Entrega</span><span>${fmt(delivery)}</span></div>
       <div class="cs-row"><span>Total</span><span>${fmt(total)}</span></div>
     </div>
+    <div class="obs-box">
+      <label>📝 Observações</label>
+      <textarea id="obsCliente" placeholder="Ex: sem cebola, sem tomate, ponto da carne, etc..."></textarea>
+    </div>
     <button class="checkout-btn" onclick="openPixModal()">💚 Pagar com Pix</button><button class="whatsapp-checkout" onclick="sendWhatsApp()" style="margin-top:8px">📲 Pedir pelo WhatsApp</button>
   `;
 }
@@ -945,6 +968,10 @@ function sendWhatsApp() {
     msg += `• ${qty}x ${item.name} — ${fmt(sub)}\n`;
   });
   msg += `\n*Total: ${fmt(total + 5)}* (inclui entrega R$ 5,00)`;
+  const obs = document.getElementById('obsCliente');
+  if (obs && obs.value.trim()) {
+    msg += `\n\n📝 *Observações:* ${obs.value.trim()}`;
+  }
   const url = `https://wa.me/${PHONE}?text=${encodeURIComponent(msg)}`;
   window.open(url, '_blank');
 }
@@ -1015,6 +1042,10 @@ function sendWhatsAppPix() {
     msg += `• ${qty}x ${item.name} — ${fmt(sub)}\n`;
   });
   msg += `\n*Total: ${fmt(total + 5)}* (inclui entrega R$ 5,00)`;
+  const obs = document.getElementById('obsCliente');
+  if (obs && obs.value.trim()) {
+    msg += `\n\n📝 *Observações:* ${obs.value.trim()}`;
+  }
   msg += `\n\n✅ Pix já realizado! Segue o comprovante 👇`;
   window.open('https://wa.me/5519989097946?text=' + encodeURIComponent(msg), '_blank');
 }
