@@ -681,6 +681,29 @@
   }
   .adicional-semLanche:hover { border-color: var(--yellow); color: var(--yellow); }
 
+
+  /* GPS ENTREGA */
+  .entrega-box {
+    background: rgba(42,122,42,.1);
+    border: 1px solid rgba(42,122,42,.3);
+    border-radius: 10px; padding: 10px 14px;
+    margin-bottom: 14px; font-size: 13px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .entrega-box.erro {
+    background: rgba(192,57,43,.1);
+    border-color: rgba(192,57,43,.3);
+  }
+  .entrega-box.calculando {
+    background: rgba(245,168,0,.08);
+    border-color: rgba(245,168,0,.3);
+  }
+  .entrega-icon { font-size: 22px; flex-shrink: 0; }
+  .entrega-info { flex: 1; }
+  .entrega-label { font-weight: 700; color: #fff; }
+  .entrega-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .entrega-valor { font-weight: 800; font-size: 16px; color: var(--yellow); flex-shrink: 0; }
+
 </style>
 </head>
 <body>
@@ -765,6 +788,8 @@
 
 <script>
 const PHONE = '5519989097946';
+const SHEETS_API = 'https://script.google.com/macros/s/AKfycby7PBj6ieu2HWfJT5EUvJJbhsvLAQ4tsMyeNMHIzEN5c2iitJrC18-UvBPkVOVu4PV7/exec';
+
 
 const menuData = [
   {
@@ -999,14 +1024,18 @@ function renderCartContent() {
       </div>`;
   });
 
-  const delivery = 5;
+  const delivery = taxaEntrega;
   const total = subtotal + delivery;
   div.innerHTML = `
     <div class="cart-items">${itemsHTML}</div>
+    <div id="entregaBox" class="entrega-box calculando">
+      <span class="entrega-icon">📡</span>
+      <div class="entrega-info"><div class="entrega-label">Calculando entrega...</div></div>
+    </div>
     <div class="cart-summary">
       <div class="cs-row"><span>Subtotal</span><span>${fmt(subtotal)}</span></div>
-      <div class="cs-row"><span>Entrega</span><span>${fmt(delivery)}</span></div>
-      <div class="cs-row"><span>Total</span><span>${fmt(total)}</span></div>
+      <div class="cs-row"><span>Entrega</span><span id="taxaDisplay">${fmt(taxaEntrega)}</span></div>
+      <div class="cs-row"><span>Total</span><span>${fmt(subtotal + taxaEntrega)}</span></div>
     </div>
     <div class="obs-box">
       <label>📝 Observações</label>
@@ -1047,7 +1076,10 @@ function toggleCart() {
   const modal = document.getElementById('cartModal');
   const overlay = document.getElementById('overlay');
   const isOpen = modal.classList.contains('show');
-  if (!isOpen) renderCartContent();
+  if (!isOpen) {
+    renderCartContent();
+    calcularEntregaGPS();
+  }
   modal.classList.toggle('show');
   overlay.classList.toggle('show');
 }
@@ -1144,6 +1176,9 @@ function finalizarWelcome() {
   const cliente = { nome, fone, endereco, data: new Date().toISOString() };
   localStorage.setItem(STORAGE_KEY_CLIENTE_LOCAL, JSON.stringify(cliente));
 
+  // Salvar no Google Sheets
+  sheetsPost({action: 'cadastro', ...cliente});
+
   // Salvar na base geral de clientes
   const baseClientes = JSON.parse(localStorage.getItem('kalanches_base_clientes') || '[]');
   const jaExiste = baseClientes.find(c => c.fone === fone);
@@ -1177,6 +1212,109 @@ function pularWelcome() {
 
 renderMenu();
 initWelcome();
+
+// ── SHEETS API ──────────────────────────────────────────
+async function sheetsPost(data) {
+  try {
+    await fetch(SHEETS_API, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+  } catch(e) { console.log('Sheets post error:', e); }
+}
+
+// ── GPS + TAXA DE ENTREGA ────────────────────────────────
+const TAXA_KM = [
+  {ate: 3,  taxa: 5.00},
+  {ate: 6,  taxa: 8.00},
+  {ate: 10, taxa: 12.00},
+  {ate: 15, taxa: 18.00},
+  {ate: 18, taxa: 25.00},
+  {ate: 999, taxa: null} // consultar
+];
+
+let trailerLat = null;
+let trailerLng = null;
+let taxaEntrega = 5.00;
+let distanciaKm = null;
+
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+            Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+            Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function calcularTaxa(km) {
+  for (const faixa of TAXA_KM) {
+    if (km <= faixa.ate) return faixa.taxa;
+  }
+  return null;
+}
+
+async function carregarLocalizacaoTrailer() {
+  try {
+    const res = await fetch(SHEETS_API + '?action=localizacao');
+    const data = await res.json();
+    if (data.lat && data.lng) {
+      trailerLat = parseFloat(data.lat);
+      trailerLng = parseFloat(data.lng);
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+function calcularEntregaGPS() {
+  const box = document.getElementById('entregaBox');
+  if (!box) return;
+
+  if (!trailerLat || !trailerLng) {
+    box.className = 'entrega-box calculando';
+    box.innerHTML = '<span class="entrega-icon">📍</span><div class="entrega-info"><div class="entrega-label">Localização do trailer não definida</div><div class="entrega-sub">O dono ainda não definiu a localização de hoje</div></div><span class="entrega-valor">R$ 5,00</span>';
+    taxaEntrega = 5.00;
+    return;
+  }
+
+  box.className = 'entrega-box calculando';
+  box.innerHTML = '<span class="entrega-icon">📡</span><div class="entrega-info"><div class="entrega-label">Calculando taxa de entrega...</div><div class="entrega-sub">Aguarde, obtendo sua localização</div></div>';
+
+  if (!navigator.geolocation) {
+    box.className = 'entrega-box erro';
+    box.innerHTML = '<span class="entrega-icon">📍</span><div class="entrega-info"><div class="entrega-label">GPS não disponível</div><div class="entrega-sub">Taxa padrão aplicada</div></div><span class="entrega-valor">R$ 5,00</span>';
+    taxaEntrega = 5.00;
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      const dist = haversine(pos.coords.latitude, pos.coords.longitude, trailerLat, trailerLng);
+      distanciaKm = dist.toFixed(1);
+      const taxa = calcularTaxa(dist);
+      taxaEntrega = taxa || 0;
+
+      if (!taxa) {
+        box.className = 'entrega-box erro';
+        box.innerHTML = `<span class="entrega-icon">❌</span><div class="entrega-info"><div class="entrega-label">Fora da área de entrega</div><div class="entrega-sub">Você está a ${distanciaKm} km — consulte via WhatsApp</div></div>`;
+      } else {
+        box.className = 'entrega-box';
+        box.innerHTML = `<span class="entrega-icon">🛵</span><div class="entrega-info"><div class="entrega-label">Entrega calculada</div><div class="entrega-sub">Você está a ${distanciaKm} km do trailer</div></div><span class="entrega-valor">${fmt(taxa)}</span>`;
+      }
+      renderCartContent();
+    },
+    function() {
+      box.className = 'entrega-box calculando';
+      box.innerHTML = '<span class="entrega-icon">📍</span><div class="entrega-info"><div class="entrega-label">Permita o acesso à sua localização</div><div class="entrega-sub">Para calcular a taxa de entrega automaticamente</div></div><span class="entrega-valor">R$ 5,00</span>';
+      taxaEntrega = 5.00;
+    }
+  );
+}
+
 
 // Categorias que são lanches (não adicionais/bebidas)
 const LANCHE_CATS = ['hotdog', 'burgers'];

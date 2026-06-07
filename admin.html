@@ -205,6 +205,26 @@
         </div>
       </div>
       <div class="card" style="margin-top:12px">
+        <div class="section-label" style="font-size:16px;margin-bottom:10px">📍 Localização do Trailer</div>
+        <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Define o ponto de origem para cálculo da taxa de entrega por GPS.</p>
+        <div id="trailerStatus" style="font-size:13px;color:#aaa;margin-bottom:12px">Carregando localização atual...</div>
+        <button class="btn-add" onclick="definirLocalizacaoTrailer()" id="btnTrailer">📍 Estou aqui! Definir localização atual</button>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="section-label" style="font-size:16px;margin-bottom:10px">💰 Taxa de Entrega</div>
+        <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Faixas de distância e taxas (em km):</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="form-group"><label>Até 3 km (R$)</label><input type="number" id="taxa1" value="5.00" step="0.50"></div>
+          <div class="form-group"><label>3 a 6 km (R$)</label><input type="number" id="taxa2" value="8.00" step="0.50"></div>
+          <div class="form-group"><label>6 a 10 km (R$)</label><input type="number" id="taxa3" value="12.00" step="0.50"></div>
+          <div class="form-group"><label>10 a 15 km (R$)</label><input type="number" id="taxa4" value="18.00" step="0.50"></div>
+          <div class="form-group"><label>15 a 18 km (R$)</label><input type="number" id="taxa5" value="25.00" step="0.50"></div>
+        </div>
+        <button class="btn-add" style="margin-top:10px" onclick="salvarTaxas()">💾 Salvar taxas</button>
+      </div>
+
+      <div class="card" style="margin-top:12px">
         <div class="section-label" style="font-size:16px;margin-bottom:10px">Alterar senha admin</div>
         <div class="form-group" style="margin-bottom:10px">
           <label>Nova senha</label>
@@ -222,6 +242,7 @@
 </div>
 
 <script>
+const SHEETS_API = 'https://script.google.com/macros/s/AKfycby7PBj6ieu2HWfJT5EUvJJbhsvLAQ4tsMyeNMHIzEN5c2iitJrC18-UvBPkVOVu4PV7/exec';
 const SENHA_DEFAULT = 'kalanches2025';
 const SK_ITENS = 'kalanches_itens_extra';
 const SK_OVERRIDES = 'kalanches_base_overrides';
@@ -229,13 +250,90 @@ const SK_SENHA = 'kalanches_admin_senha';
 const SK_LOJA = 'kalanches_loja_aberta';
 const SK_CLIENTES = 'kalanches_base_clientes';
 
+
+// ── TRAILER GPS ──────────────────────────────────────────
+const SHEETS_API_URL = SHEETS_API;
+
+async function sheetsPost(data) {
+  try {
+    await fetch(SHEETS_API_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+  } catch(e) { console.log(e); }
+}
+
+async function carregarStatusTrailer() {
+  try {
+    const res = await fetch(SHEETS_API_URL + '?action=localizacao');
+    const data = await res.json();
+    const el = document.getElementById('trailerStatus');
+    if (!el) return;
+    if (data.lat && data.lng) {
+      el.innerHTML = `✅ <strong style="color:#1fcc6d">Localização definida</strong><br>
+        📍 Lat: ${parseFloat(data.lat).toFixed(5)}, Lng: ${parseFloat(data.lng).toFixed(5)}<br>
+        🕐 Atualizado: ${data.update || '—'}`;
+    } else {
+      el.innerHTML = '⚠️ <span style="color:var(--yellow)">Localização não definida ainda</span>';
+    }
+  } catch(e) {
+    document.getElementById('trailerStatus').textContent = 'Erro ao carregar localização.';
+  }
+}
+
+function definirLocalizacaoTrailer() {
+  const btn = document.getElementById('btnTrailer');
+  btn.textContent = '⏳ Obtendo localização...';
+  btn.disabled = true;
+
+  if (!navigator.geolocation) {
+    alert('GPS não disponível neste dispositivo!');
+    btn.textContent = '📍 Estou aqui! Definir localização atual';
+    btn.disabled = false;
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async function(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      await sheetsPost({action: 'localizacao', lat, lng});
+      alert('✅ Localização do trailer salva!\n\nLat: ' + lat.toFixed(5) + '\nLng: ' + lng.toFixed(5));
+      btn.textContent = '📍 Estou aqui! Definir localização atual';
+      btn.disabled = false;
+      carregarStatusTrailer();
+    },
+    function() {
+      alert('Não foi possível obter a localização. Verifique as permissões de GPS!');
+      btn.textContent = '📍 Estou aqui! Definir localização atual';
+      btn.disabled = false;
+    },
+    {enableHighAccuracy: true, timeout: 10000}
+  );
+}
+
+function salvarTaxas() {
+  const taxas = {
+    taxa_km3:  document.getElementById('taxa1').value,
+    taxa_km6:  document.getElementById('taxa2').value,
+    taxa_km10: document.getElementById('taxa3').value,
+    taxa_km15: document.getElementById('taxa4').value,
+    taxa_km18: document.getElementById('taxa5').value,
+  };
+  Object.entries(taxas).forEach(([chave, valor]) => {
+    sheetsPost({action: 'config', chave, valor});
+  });
+  alert('✅ Taxas salvas na planilha!');
+}
+
 // ─── AUTH ───────────────────────────────────────────────
 function getSenha(){ return localStorage.getItem(SK_SENHA)||SENHA_DEFAULT; }
 function fazerLogin(){
   if(document.getElementById('senhaInput').value===getSenha()){
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('adminPanel').style.display='block';
-    renderItens(); renderClientes(); renderLoja();
+    renderItens(); renderClientes(); renderLoja(); carregarStatusTrailer();
   } else {
     document.getElementById('loginError').style.display='block';
   }
