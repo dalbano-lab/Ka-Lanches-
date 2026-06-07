@@ -1019,6 +1019,49 @@ function sendWhatsAppPix() {
   window.open('https://wa.me/5519989097946?text=' + encodeURIComponent(msg), '_blank');
 }
 
+
+// WELCOME MODAL
+const STORAGE_KEY_CLIENTE_LOCAL = 'kalanches_cliente_local';
+
+function initWelcome() {
+  const salvo = localStorage.getItem(STORAGE_KEY_CLIENTE_LOCAL);
+  const pulado = sessionStorage.getItem('kalanches_skipped');
+  if (!salvo && !pulado) {
+    document.getElementById('welcomeModal').style.display = 'flex';
+  }
+  try {
+    const c = JSON.parse(salvo || '{}');
+    if (c.nome) {
+      const badge = document.querySelector('.status-badge');
+      if (badge) badge.textContent = '\u25cf Ol\u00e1, ' + c.nome.split(' ')[0] + '!';
+    }
+  } catch(e) {}
+}
+
+function finalizarWelcome() {
+  const nome = document.getElementById('wNome').value.trim();
+  const fone = document.getElementById('wFone').value.trim();
+  if (!nome || !fone) { alert('Por favor preencha nome e WhatsApp!'); return; }
+  const endereco = document.getElementById('wEndereco').value.trim();
+  const cliente = { nome, fone, endereco, data: new Date().toISOString() };
+  localStorage.setItem(STORAGE_KEY_CLIENTE_LOCAL, JSON.stringify(cliente));
+  const msg = '\u2b50 *NOVO CLIENTE*\n\n\ud83d\udc64 *Nome:* ' + nome + '\n\ud83d\udcf1 *WhatsApp:* ' + fone + '\n\ud83d\udccd *Endere\u00e7o:* ' + (endereco || 'N\u00e3o informado');
+  const link = document.createElement('a');
+  link.href = 'https://wa.me/5519989097946?text=' + encodeURIComponent(msg);
+  link.target = '_blank';
+  link.click();
+  document.getElementById('welcomeModal').style.display = 'none';
+  const badge = document.querySelector('.status-badge');
+  if (badge) badge.textContent = '\u25cf Ol\u00e1, ' + nome.split(' ')[0] + '!';
+}
+
+function pularWelcome() {
+  sessionStorage.setItem('kalanches_skipped', '1');
+  document.getElementById('welcomeModal').style.display = 'none';
+}
+
+renderMenu();
+initWelcome();
 </script>
 
 <!-- PIX MODAL -->
