@@ -1404,6 +1404,41 @@ function closeAdicionalModal() {
   pendingAdicionalId = null;
 }
 
+
+// ── CARREGAR PREÇOS DO SHEETS ────────────────────────────
+async function carregarPrecosSheets() {
+  try {
+    const res = await fetch(SHEETS_API + '?action=config');
+    const config = await res.json();
+    let atualizado = false;
+
+    menuData.forEach(section => {
+      section.items.forEach(item => {
+        const chave = 'preco_b' + item.id;
+        const chave2 = 'preco_' + item.id;
+        const raw = config[chave] || config[chave2];
+        if (raw) {
+          try {
+            const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (data.nome) item.name = data.nome;
+            if (data.preco) item.price = parseFloat(data.preco);
+            if (data.desc) item.desc = data.desc;
+            atualizado = true;
+          } catch(e) {}
+        }
+      });
+    });
+
+    if (atualizado) {
+      renderMenu();
+      console.log('✅ Preços atualizados do Sheets');
+    }
+  } catch(e) {
+    console.log('Precos sheets error:', e);
+  }
+}
+
+carregarPrecosSheets();
 </script>
 
 <!-- PIX MODAL -->
