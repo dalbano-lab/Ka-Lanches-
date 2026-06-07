@@ -1408,7 +1408,7 @@ function closeAdicionalModal() {
 // ── CARREGAR PREÇOS DO SHEETS ────────────────────────────
 async function carregarPrecosSheets() {
   try {
-    const res = await fetch(SHEETS_API + '?action=config');
+    const res = await fetch(SHEETS_API + '?action=config&t=' + Date.now());
     const config = await res.json();
     let atualizado = false;
 
