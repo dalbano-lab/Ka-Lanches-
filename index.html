@@ -1144,6 +1144,14 @@ function finalizarWelcome() {
   const cliente = { nome, fone, endereco, data: new Date().toISOString() };
   localStorage.setItem(STORAGE_KEY_CLIENTE_LOCAL, JSON.stringify(cliente));
 
+  // Salvar na base geral de clientes
+  const baseClientes = JSON.parse(localStorage.getItem('kalanches_base_clientes') || '[]');
+  const jaExiste = baseClientes.find(c => c.fone === fone);
+  if (!jaExiste) {
+    baseClientes.push({ ...cliente, id: Date.now() });
+    localStorage.setItem('kalanches_base_clientes', JSON.stringify(baseClientes));
+  }
+
   // Notifica dono em background sem redirecionar o cliente
   const msg = '\u2b50 *NOVO CLIENTE*\n\n\ud83d\udc64 *Nome:* ' + nome + '\n\ud83d\udcf1 *WhatsApp:* ' + fone + '\n\ud83d\udccd *Endere\u00e7o:* ' + (endereco || 'N\u00e3o informado');
   const notifLink = document.createElement('a');
