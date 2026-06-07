@@ -327,13 +327,39 @@ function salvarTaxas() {
   alert('✅ Taxas salvas na planilha!');
 }
 
+
+async function carregarConfigSheets() {
+  try {
+    const res = await fetch(SHEETS_API + '?action=config');
+    const config = await res.json();
+    const overrides = getOverrides();
+    const extras = getItens();
+
+    Object.entries(config).forEach(([chave, valor]) => {
+      if (chave.startsWith('preco_')) {
+        const id = chave.replace('preco_', '');
+        try {
+          const data = JSON.parse(valor);
+          overrides[id] = { ...overrides[id], ...data };
+        } catch(e) {}
+      }
+    });
+    saveOverrides(overrides);
+    console.log('✅ Config carregada do Sheets');
+  } catch(e) {
+    console.log('Sheets config load error:', e);
+  }
+}
+
 // ─── AUTH ───────────────────────────────────────────────
 function getSenha(){ return localStorage.getItem(SK_SENHA)||SENHA_DEFAULT; }
 function fazerLogin(){
   if(document.getElementById('senhaInput').value===getSenha()){
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('adminPanel').style.display='block';
-    renderItens(); renderClientes(); renderLoja(); carregarStatusTrailer();
+    carregarConfigSheets().then(()=>{
+      renderItens(); renderClientes(); renderLoja(); carregarStatusTrailer();
+    });
   } else {
     document.getElementById('loginError').style.display='block';
   }
@@ -387,12 +413,15 @@ function adicionarItem(){
   const itens=getItens();
   itens.push({id:Date.now(),nome,preco,desc:document.getElementById('newDesc').value.trim(),cat:document.getElementById('newCat').value,emoji:document.getElementById('newEmoji').value||'🍔',ativo:true});
   saveItens(itens);
+  // Salvar no Sheets
+  const novoItem = itens[itens.length-1];
+  sheetsPost({action:'config', chave:'item_extra_'+novoItem.id, valor: JSON.stringify(novoItem)});
   document.getElementById('newNome').value='';
   document.getElementById('newPreco').value='';
   document.getElementById('newDesc').value='';
   document.getElementById('newEmoji').value='';
   renderItens();
-  alert('✅ Item adicionado!');
+  alert('✅ Item adicionado e salvo na planilha!');
 }
 
 function renderItens(){
@@ -463,8 +492,10 @@ function salvarEdicao(id,isBase){
   } else {
     saveItens(getItens().map(i=>String(i.id)===String(id)?{...i,nome,preco,desc}:i));
   }
+  // Salvar no Sheets
+  sheetsPost({action:'config', chave:'preco_'+id, valor: JSON.stringify({nome,preco,desc})});
   renderItens();
-  alert('✅ Atualizado!');
+  alert('✅ Atualizado e salvo na planilha!');
 }
 function toggleItem(id,isBase){
   if(isBase){
