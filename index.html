@@ -436,6 +436,98 @@
   }
   .pix-whats:hover { background: #18923f; }
 
+
+  /* CADASTRO MODAL */
+  .cad-modal {
+    position: fixed; inset: 0; z-index: 300;
+    display: none; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .cad-modal.show { display: flex; }
+  .cad-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.85); }
+  .cad-box {
+    position: relative; z-index: 1;
+    background: var(--dark2);
+    border: 2px solid var(--yellow);
+    border-radius: 20px;
+    padding: 24px 20px 28px;
+    max-width: 380px; width: 100%;
+    box-shadow: 0 0 40px rgba(245,168,0,.2);
+    animation: popIn .3s cubic-bezier(.4,0,.2,1);
+    max-height: 90vh; overflow-y: auto;
+  }
+  .cad-header { text-align: center; margin-bottom: 20px; }
+  .cad-header h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px; color: var(--yellow); letter-spacing: 1px;
+  }
+  .cad-header p { font-size: 13px; color: #aaa; margin-top: 4px; }
+  .cad-field { margin-bottom: 14px; }
+  .cad-field label {
+    display: block; font-size: 12px; font-weight: 700;
+    color: #aaa; margin-bottom: 6px; letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  .cad-field input, .cad-field select {
+    width: 100%; background: var(--dark3);
+    border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; font-size: 14px; color: #fff;
+    font-family: 'Nunito', sans-serif; outline: none;
+    transition: border-color .2s;
+  }
+  .cad-field input:focus, .cad-field select:focus { border-color: var(--yellow); }
+  .cad-field select option { background: var(--dark2); }
+  .cad-field input::placeholder { color: #555; }
+  .cad-submit {
+    width: 100%; background: #1fad5a; color: #fff;
+    border: none; border-radius: 50px; padding: 15px;
+    font-size: 15px; font-weight: 800;
+    font-family: 'Nunito', sans-serif; cursor: pointer;
+    margin-top: 6px; transition: background .2s;
+  }
+  .cad-submit:hover { background: #18923f; }
+  .cad-cancel {
+    width: 100%; background: transparent;
+    border: 1.5px solid var(--border); color: #aaa;
+    border-radius: 50px; padding: 11px;
+    font-size: 14px; font-weight: 700;
+    font-family: 'Nunito', sans-serif; cursor: pointer;
+    margin-top: 8px; transition: all .2s;
+  }
+  .cad-cancel:hover { border-color: var(--yellow); color: var(--yellow); }
+  .cad-benefits {
+    background: rgba(42,122,42,.1);
+    border: 1px solid rgba(42,122,42,.3);
+    border-radius: 10px; padding: 12px 14px;
+    margin-bottom: 18px;
+  }
+  .cad-benefits p {
+    font-size: 12px; color: #ccc;
+    margin-bottom: 4px; line-height: 1.6;
+  }
+  .cad-benefits p:last-child { margin-bottom: 0; }
+
+  /* BOTÃO CADASTRO NO BANNER */
+  .cad-banner-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--dark3); color: var(--yellow);
+    border: 1.5px solid var(--yellow);
+    padding: 8px 16px; border-radius: 50px;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; margin-top: 8px;
+    margin-left: 8px;
+    transition: all .2s; font-family: 'Nunito', sans-serif;
+  }
+  .cad-banner-btn:hover { background: var(--yellow); color: var(--dark); }
+
+  /* LINK DISCRETO NO FOOTER */
+  .admin-link {
+    display: block; text-align: center;
+    padding: 20px; font-size: 11px; color: #333;
+    text-decoration: none; letter-spacing: 1px;
+  }
+  .admin-link:hover { color: #555; }
+
 </style>
 </head>
 <body>
@@ -475,6 +567,7 @@
     <a class="whatsapp-link" href="https://wa.me/5519989097946" target="_blank">
       📲 Peça pelo WhatsApp: <strong>(19) 98909-7946</strong>
     </a>
+      <button class="cad-banner-btn" onclick="openCad()">⭐ Cadastrar e ser VIP</button>
   </div>
 </div>
 
@@ -881,5 +974,53 @@ function sendWhatsAppPix() {
   </div>
 </div>
 
+
+<!-- CADASTRO MODAL -->
+<div class="cad-modal" id="cadModal">
+  <div class="cad-overlay" onclick="closeCad()"></div>
+  <div class="cad-box">
+    <div class="cad-header">
+      <h2>🍔 Seja VIP!</h2>
+      <p>Cadastre-se e ganhe vantagens exclusivas</p>
+    </div>
+    <div class="cad-benefits">
+      <p>🎂 <strong style="color:var(--yellow)">Desconto no aniversário</strong></p>
+      <p>🎁 <strong style="color:var(--yellow)">Promoções exclusivas</strong> para clientes cadastrados</p>
+      <p>🏆 <strong style="color:var(--yellow)">Programa fidelidade</strong> — a cada 10 pedidos, 1 grátis</p>
+    </div>
+    <div class="cad-field">
+      <label>Nome completo *</label>
+      <input type="text" id="cadNome" placeholder="Seu nome">
+    </div>
+    <div class="cad-field">
+      <label>WhatsApp *</label>
+      <input type="tel" id="cadWhats" placeholder="(19) 99999-9999">
+    </div>
+    <div class="cad-field">
+      <label>Endereço de entrega</label>
+      <input type="text" id="cadEndereco" placeholder="Rua, número, bairro">
+    </div>
+    <div class="cad-field">
+      <label>Data de nascimento</label>
+      <input type="date" id="cadNasc">
+    </div>
+    <div class="cad-field">
+      <label>Como nos conheceu?</label>
+      <select id="cadOrigem">
+        <option value="">Selecione...</option>
+        <option value="Instagram">Instagram</option>
+        <option value="Indicação de amigo">Indicação de amigo</option>
+        <option value="Passando na rua">Passando na rua</option>
+        <option value="WhatsApp">WhatsApp</option>
+        <option value="Outro">Outro</option>
+      </select>
+    </div>
+    <button class="cad-submit" onclick="enviarCadastro()">📲 Finalizar cadastro pelo WhatsApp</button>
+    <button class="cad-cancel" onclick="closeCad()">Agora não</button>
+  </div>
+</div>
+
+
+<a href="/admin.html" class="admin-link">·</a>
 </body>
 </html>
