@@ -1251,7 +1251,8 @@ function haversine(lat1, lng1, lat2, lng2) {
 }
 
 function calcularTaxa(km) {
-  for (const faixa of TAXA_KM) {
+  const tabela = window.TAXA_KM_SHEETS || TAXA_KM;
+  for (const faixa of tabela) {
     if (km <= faixa.ate) return faixa.taxa;
   }
   return null;
@@ -1405,34 +1406,71 @@ function closeAdicionalModal() {
 }
 
 
-// ── CARREGAR PREÇOS DO SHEETS ────────────────────────────
+// ── CARREGAR PREÇOS E ITENS DO SHEETS ───────────────────
 async function carregarPrecosSheets() {
   try {
     const res = await fetch(SHEETS_API + '?action=config&t=' + Date.now());
     const config = await res.json();
-    let atualizado = false;
 
+    // 1. Atualizar preços dos itens base
     menuData.forEach(section => {
       section.items.forEach(item => {
-        const chave = 'preco_b' + item.id;
-        const chave2 = 'preco_' + item.id;
-        const raw = config[chave] || config[chave2];
+        const raw = config['preco_b' + item.id] || config['preco_' + item.id];
         if (raw) {
           try {
             const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
             if (data.nome) item.name = data.nome;
-            if (data.preco) item.price = parseFloat(data.preco);
-            if (data.desc) item.desc = data.desc;
-            atualizado = true;
+            if (data.preco !== undefined) item.price = parseFloat(data.preco);
+            if (data.desc !== undefined) item.desc = data.desc;
           } catch(e) {}
         }
       });
     });
 
-    if (atualizado) {
-      renderMenu();
-      console.log('✅ Preços atualizados do Sheets');
+    // 2. Carregar itens extras do Sheets
+    const extras = [];
+    Object.entries(config).forEach(([chave, valor]) => {
+      if (chave.startsWith('item_extra_')) {
+        try {
+          const item = typeof valor === 'string' ? JSON.parse(valor) : valor;
+          if (item && item.ativo !== false) {
+            extras.push({
+              id: item.id,
+              emoji: item.emoji || '🍔',
+              name: item.nome,
+              price: parseFloat(item.preco),
+              desc: item.desc || '',
+              cat: item.cat || 'burgers'
+            });
+          }
+        } catch(e) {}
+      }
+    });
+
+    // Adicionar extras ao menuData sem duplicar
+    if (extras.length > 0) {
+      extras.forEach(extra => {
+        const section = menuData.find(s => s.category === extra.cat);
+        if (section) {
+          const jaExiste = section.items.find(i => String(i.id) === String(extra.id));
+          if (!jaExiste) section.items.push(extra);
+        }
+      });
     }
+
+    // 3. Carregar taxas de entrega do Sheets
+    if (config['taxa_km3']) {
+      window.TAXA_KM_SHEETS = [
+        {ate: 3,   taxa: parseFloat(config['taxa_km3'])},
+        {ate: 6,   taxa: parseFloat(config['taxa_km6'])},
+        {ate: 10,  taxa: parseFloat(config['taxa_km10'])},
+        {ate: 15,  taxa: parseFloat(config['taxa_km15'])},
+        {ate: 18,  taxa: parseFloat(config['taxa_km18'])},
+        {ate: 999, taxa: null}
+      ];
+    }
+
+    console.log('✅ Config carregada do Sheets');
   } catch(e) {
     console.log('Precos sheets error:', e);
   }
