@@ -314,7 +314,32 @@ function switchTab(tab) {
   document.getElementById('tab-' + tab).classList.add('active');
 }
 
-// ITENS
+// CARDÁPIO BASE (espelha os itens do site)
+const BASE_MENU = [
+  { id: 'b1', emoji:'🌭', nome:'Hot Dog Simples',     preco:16.00, cat:'hotdog',  desc:'Pão, 1 salsicha, maionese, ketchup, mostarda, batata palha e purê' },
+  { id: 'b2', emoji:'🌭', nome:'Hot Dog Duplo',       preco:18.00, cat:'hotdog',  desc:'Pão, 2 salsichas, maionese, ketchup, mostarda, batata palha e purê' },
+  { id: 'b3', emoji:'🍗', nome:'X-Frango',            preco:27.00, cat:'burgers', desc:'Pão de brioche, maionese, ketchup, molho especial, cheddar, filé de frango, bacon, presunto, mussarela, ovo, cebola roxa, alface e tomate' },
+  { id: 'b4', emoji:'🍔', nome:'X-Burguer',           preco:20.00, cat:'burgers', desc:'Pão de brioche, maionese, ketchup, molho especial, cheddar, hambúrguer, bacon, presunto, mussarela, alface e tomate' },
+  { id: 'b5', emoji:'🍔', nome:'X-Burguer Duplo',     preco:25.00, cat:'burgers', desc:'Pão de brioche, maionese, ketchup, molho especial, cheddar, 2 hambúrgueres, bacon, presunto, mussarela, cebola roxa, alface e tomate' },
+  { id: 'b6', emoji:'🥓', nome:'X-Bacon',             preco:28.00, cat:'burgers', desc:'Pão de brioche, maionese, ketchup, molho especial, cheddar, hambúrguer, mais bacon, presunto, mussarela, cebola roxa, alface e tomate' },
+  { id: 'b7', emoji:'🇺🇸', nome:'Americano',          preco:23.00, cat:'burgers', desc:'Pão de brioche, maionese, ketchup, molho especial, cheddar, hambúrguer, bacon, presunto, mussarela, ovo, cebola roxa, alface e tomate' },
+  { id: 'b8', emoji:'🥚', nome:'Ovo',                 preco:3.50,  cat:'adicional', desc:'Adicional' },
+  { id: 'b9', emoji:'🧀', nome:'Presunto e Mussarela',preco:3.50,  cat:'adicional', desc:'Adicional' },
+  { id:'b10', emoji:'🍖', nome:'Hambúrguer',           preco:5.00,  cat:'adicional', desc:'Adicional' },
+  { id:'b11', emoji:'🧅', nome:'Cebola Roxa',          preco:3.50,  cat:'adicional', desc:'Adicional' },
+  { id:'b12', emoji:'🥓', nome:'Bacon',                preco:3.50,  cat:'adicional', desc:'Adicional' },
+  { id:'b13', emoji:'🍗', nome:'Filé de Frango',       preco:5.00,  cat:'adicional', desc:'Adicional' },
+  { id:'b14', emoji:'💧', nome:'Água',                 preco:0,     cat:'bebidas', desc:'Bebida' },
+  { id:'b15', emoji:'💦', nome:'Água com Gás',         preco:0,     cat:'bebidas', desc:'Bebida' },
+  { id:'b16', emoji:'🧃', nome:'Suco Dell Vale',       preco:0,     cat:'bebidas', desc:'Bebida' },
+  { id:'b17', emoji:'🥤', nome:'Refrigerante Lata',    preco:0,     cat:'bebidas', desc:'Bebida' },
+  { id:'b18', emoji:'🍺', nome:'Cerveja Lata',         preco:0,     cat:'bebidas', desc:'Bebida' },
+];
+
+const STORAGE_KEY_BASE_OVERRIDES = 'kalanches_base_overrides';
+
+function getOverrides() { return JSON.parse(localStorage.getItem(STORAGE_KEY_BASE_OVERRIDES) || '{}'); }
+function saveOverrides(o) { localStorage.setItem(STORAGE_KEY_BASE_OVERRIDES, JSON.stringify(o)); }
 function getItens() { return JSON.parse(localStorage.getItem(STORAGE_KEY_ITENS) || '[]'); }
 function saveItens(itens) { localStorage.setItem(STORAGE_KEY_ITENS, JSON.stringify(itens)); }
 
@@ -325,8 +350,7 @@ function adicionarItem() {
   const itens = getItens();
   itens.push({
     id: Date.now(),
-    nome,
-    preco,
+    nome, preco,
     desc: document.getElementById('newDesc').value.trim(),
     cat: document.getElementById('newCat').value,
     emoji: document.getElementById('newEmoji').value || '🍔',
@@ -338,42 +362,120 @@ function adicionarItem() {
   document.getElementById('newDesc').value = '';
   document.getElementById('newEmoji').value = '';
   renderItens();
-  alert('✅ Item adicionado!');
+  alert('✅ Item adicionado com sucesso!');
 }
 
 function renderItens() {
-  const itens = getItens();
+  const overrides = getOverrides();
+  const extrasItens = getItens();
   const div = document.getElementById('listaItens');
-  if (!itens.length) {
-    div.innerHTML = '<div class="empty-msg">Nenhum item extra cadastrado ainda.</div>';
-    return;
-  }
-  div.innerHTML = itens.map(item => `
-    <div class="card" style="padding:12px">
-      <div class="item-row">
-        <span class="item-emoji">${item.emoji}</span>
-        <div class="item-info">
-          <div class="item-name">${item.nome}</div>
-          <div class="item-price">R$ ${item.preco.toFixed(2).replace('.',',')}</div>
-          <div class="item-cat">${item.cat}</div>
-        </div>
-        <div class="toggle-wrap">
-          <button class="toggle ${item.ativo ? 'on' : ''}" onclick="toggleItem(${item.id})"></button>
-          <button class="btn-del" onclick="deletarItem(${item.id})">🗑</button>
-        </div>
-      </div>
-    </div>
-  `).join('');
+
+  const catLabels = { burgers:'🍔 Burgers', hotdog:'🌭 Hot Dogs', adicional:'➕ Adicionais', bebidas:'🥤 Bebidas' };
+  const grupos = {};
+  
+  // Agrupar itens base com overrides aplicados
+  BASE_MENU.forEach(item => {
+    const ov = overrides[item.id] || {};
+    const merged = { ...item, ...ov, base: true };
+    if (!grupos[item.cat]) grupos[item.cat] = [];
+    grupos[item.cat].push(merged);
+  });
+
+  // Itens extras
+  extrasItens.forEach(item => {
+    if (!grupos[item.cat]) grupos[item.cat] = [];
+    grupos[item.cat].push({ ...item, base: false });
+  });
+
+  let html = '';
+  Object.entries(grupos).forEach(([cat, itens]) => {
+    html += `<div class="section-label" style="margin-top:16px;margin-bottom:8px">${catLabels[cat]||cat}</div>`;
+    itens.forEach(item => {
+      const ativo = item.ativo !== false;
+      html += `
+        <div class="card" style="padding:12px;margin-bottom:8px" id="card-${item.id}">
+          <div class="item-row">
+            <span class="item-emoji">${item.emoji}</span>
+            <div class="item-info">
+              <div class="item-name">${item.nome}</div>
+              <div class="item-price">${item.preco > 0 ? 'R$ ' + item.preco.toFixed(2).replace('.',',') : 'Consultar'}</div>
+              <div class="item-cat" style="font-size:11px;color:#666">${item.desc||''}</div>
+            </div>
+            <div class="toggle-wrap" style="flex-direction:column;gap:6px;align-items:flex-end">
+              <button class="toggle ${ativo ? 'on' : ''}" onclick="toggleItem('${item.id}', ${item.base})"></button>
+              <div style="display:flex;gap:4px">
+                <button class="btn-del" style="border-color:var(--yellow);color:var(--yellow)" onclick="editarItem('${item.id}', ${item.base})">✏️</button>
+                ${!item.base ? `<button class="btn-del" onclick="deletarItem(${item.id})">🗑</button>` : ''}
+              </div>
+            </div>
+          </div>
+          <div id="edit-${item.id}" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nome</label>
+                <input type="text" id="edit-nome-${item.id}" value="${item.nome}">
+              </div>
+              <div class="form-group">
+                <label>Preço (R$)</label>
+                <input type="number" id="edit-preco-${item.id}" value="${item.preco}" step="0.50">
+              </div>
+            </div>
+            <div class="form-row full">
+              <div class="form-group">
+                <label>Descrição</label>
+                <input type="text" id="edit-desc-${item.id}" value="${item.desc||''}">
+              </div>
+            </div>
+            <button class="btn-add" onclick="salvarEdicao('${item.id}', ${item.base})">💾 Salvar</button>
+            <button class="btn-del" style="margin-left:8px" onclick="document.getElementById('edit-${item.id}').style.display='none'">Cancelar</button>
+          </div>
+        </div>`;
+    });
+  });
+
+  div.innerHTML = html || '<div class="empty-msg">Nenhum item cadastrado.</div>';
 }
 
-function toggleItem(id) {
-  const itens = getItens().map(i => i.id === id ? {...i, ativo: !i.ativo} : i);
-  saveItens(itens); renderItens();
+function editarItem(id, isBase) {
+  const el = document.getElementById('edit-' + id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function salvarEdicao(id, isBase) {
+  const nome = document.getElementById('edit-nome-' + id).value.trim();
+  const preco = parseFloat(document.getElementById('edit-preco-' + id).value);
+  const desc = document.getElementById('edit-desc-' + id).value.trim();
+  if (!nome) { alert('Nome obrigatório!'); return; }
+
+  if (isBase) {
+    const overrides = getOverrides();
+    overrides[id] = { ...overrides[id], nome, preco, desc };
+    saveOverrides(overrides);
+  } else {
+    const itens = getItens().map(i => String(i.id) === String(id) ? { ...i, nome, preco, desc } : i);
+    saveItens(itens);
+  }
+  renderItens();
+  alert('✅ Item atualizado!');
+}
+
+function toggleItem(id, isBase) {
+  if (isBase) {
+    const overrides = getOverrides();
+    const item = BASE_MENU.find(i => i.id === id);
+    const atualAtivo = (overrides[id]?.ativo !== false) && (item?.ativo !== false);
+    overrides[id] = { ...overrides[id], ativo: !atualAtivo };
+    saveOverrides(overrides);
+  } else {
+    const itens = getItens().map(i => String(i.id) === String(id) ? {...i, ativo: !i.ativo} : i);
+    saveItens(itens);
+  }
+  renderItens();
 }
 
 function deletarItem(id) {
   if (!confirm('Remover este item?')) return;
-  saveItens(getItens().filter(i => i.id !== id));
+  saveItens(getItens().filter(i => String(i.id) !== String(id)));
   renderItens();
 }
 
